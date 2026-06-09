@@ -44,6 +44,18 @@ function formatLength(value) {
   return `${value.toFixed(2)} mm`;
 }
 
+async function forceAppUpdate() {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+  }
+  window.location.replace(`/?update=${Date.now()}`);
+}
+
 function App() {
   const inputRef = useRef(null);
   const viewerRef = useRef(null);
@@ -128,6 +140,9 @@ function App() {
           </button>
           <button className="icon-button" title="Screenshot" onClick={() => viewerRef.current?.capture()}>
             <Camera size={17} />
+          </button>
+          <button className="text-button update-action" title="Force app update" onClick={forceAppUpdate}>
+            Update
           </button>
           <button
             className="icon-button panel-toggle"
@@ -376,7 +391,7 @@ function App() {
         onChange={(event) => onFile(event.target.files?.[0])}
       />
       {updateReady && (
-        <button className="update-toast" onClick={() => window.location.reload()}>
+        <button className="update-toast" onClick={forceAppUpdate}>
           New version ready. Tap to refresh.
         </button>
       )}
@@ -400,6 +415,7 @@ if ('serviceWorker' in navigator) {
         worker.addEventListener('statechange', () => {
           if (worker.state === 'installed' && navigator.serviceWorker.controller) {
             window.dispatchEvent(new CustomEvent('stp-studio-update-ready'));
+            worker.postMessage({ type: 'SKIP_WAITING' });
           }
         });
       };

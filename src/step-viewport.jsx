@@ -98,31 +98,34 @@ function fitCamera(camera, controls, object, viewName = 'iso') {
   controls.update();
 }
 
-function makeTextSprite(text) {
+function makeTextSprite(text, options = {}) {
+  const fontSize = options.fontSize ?? 18;
+  const scaleX = options.scaleX ?? 38;
+  const scaleY = options.scaleY ?? 10;
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   const ratio = window.devicePixelRatio || 1;
-  canvas.width = 256 * ratio;
-  canvas.height = 72 * ratio;
+  canvas.width = 384 * ratio;
+  canvas.height = 104 * ratio;
   context.scale(ratio, ratio);
   context.fillStyle = 'rgba(18, 31, 38, 0.92)';
   context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
   context.lineWidth = 2;
   context.beginPath();
-  context.roundRect(8, 8, 240, 48, 8);
+  context.roundRect(10, 10, 364, 66, 10);
   context.fill();
   context.stroke();
   context.fillStyle = '#ffffff';
-  context.font = '700 18px Segoe UI, sans-serif';
+  context.font = `800 ${fontSize}px Segoe UI, sans-serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.fillText(text, 128, 32);
+  context.fillText(text, 192, 43);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(38, 10, 1);
+  sprite.scale.set(scaleX, scaleY, 1);
   sprite.userData.texture = texture;
   return sprite;
 }
@@ -176,7 +179,7 @@ function addDimensionLine(group, label, start, end, tickAxis, labelLift = new TH
   group.add(makeLine([start, end]));
   group.add(makeLine([start.clone().sub(tick), start.clone().add(tick)]));
   group.add(makeLine([end.clone().sub(tick), end.clone().add(tick)]));
-  const sprite = makeTextSprite(label);
+  const sprite = makeTextSprite(label, { fontSize: 30, scaleX: 72, scaleY: 19 });
   sprite.position.copy(start).add(end).multiplyScalar(0.5).add(labelLift);
   group.add(sprite);
 }
@@ -282,19 +285,30 @@ const StepViewport = forwardRef(function StepViewport({
     })));
   }, [onParts]);
 
-  const applyExplode = useCallback((amount) => {
-    explodeAmountRef.current = amount;
-    for (const part of partsRef.current) {
-      part.group.position.copy(part.basePosition).add(part.explodeVector.clone().multiplyScalar(amount));
+  const getDimensionTargetBox = useCallback(() => {
+    const visibleParts = partsRef.current.filter((part) => part.group.visible);
+    if (visibleParts.length === 1) {
+      return getModelBox(visibleParts[0].group);
     }
+    return getModelBox(modelGroupRef.current) || modelBoxRef.current;
   }, []);
 
   const rebuildAutoDimensions = useCallback((visible) => {
     disposeObject(dimensionGroupRef.current);
     dimensionGroupRef.current.clear();
-    if (!visible || !modelBoxRef.current) return;
-    dimensionGroupRef.current.add(makeAutoDimensionGroup(modelBoxRef.current));
-  }, []);
+    if (!visible) return;
+    const targetBox = getDimensionTargetBox();
+    if (!targetBox) return;
+    dimensionGroupRef.current.add(makeAutoDimensionGroup(targetBox));
+  }, [getDimensionTargetBox]);
+
+  const applyExplode = useCallback((amount) => {
+    explodeAmountRef.current = amount;
+    for (const part of partsRef.current) {
+      part.group.position.copy(part.basePosition).add(part.explodeVector.clone().multiplyScalar(amount));
+    }
+    rebuildAutoDimensions(showAutoDimensionsRef.current);
+  }, [rebuildAutoDimensions]);
 
   const clearMeasurements = useCallback(() => {
     disposeObject(measurementGroupRef.current);
@@ -309,8 +323,9 @@ const StepViewport = forwardRef(function StepViewport({
       part.group.visible = true;
       part.isolated = false;
     }
+    rebuildAutoDimensions(showAutoDimensionsRef.current);
     publishParts();
-  }, [publishParts]);
+  }, [publishParts, rebuildAutoDimensions]);
 
   const rebuildScene = useCallback((result, mode) => {
     const group = modelGroupRef.current;
@@ -568,6 +583,7 @@ const StepViewport = forwardRef(function StepViewport({
       if (!part) return;
       part.group.visible = !part.group.visible;
       part.isolated = false;
+      rebuildAutoDimensions(showAutoDimensionsRef.current);
       publishParts();
     },
     isolatePart(id) {
@@ -582,6 +598,7 @@ const StepViewport = forwardRef(function StepViewport({
         part.group.visible = part.id === id;
         part.isolated = part.id === id;
       }
+      rebuildAutoDimensions(showAutoDimensionsRef.current);
       publishParts();
       fitCamera(cameraRef.current, controlsRef.current, target.group);
     },
