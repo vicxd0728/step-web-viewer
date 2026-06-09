@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+*.log
+*.stp
+*.step
+*.glb
+*.stl
+*.obj
+chrome-profile/
+edge-profile/
