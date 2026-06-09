@@ -19,5 +19,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "description": "Browser-based .stp / .step CAD viewer and measurement workspace.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vicxd0728/step-web-viewer.git"
+  },
+  "homepage": "https://step-web-viewer.pages.dev/"
 }
