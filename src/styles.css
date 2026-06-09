@@ -1,8 +1,18 @@
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #eef2f5;
+  background: #101820;
   color: #162027;
+  --chrome: #101820;
+  --chrome-2: #14232c;
+  --chrome-3: #1a303b;
+  --accent: #61d6c9;
+  --accent-2: #ffb020;
+  --paper: #f6f8fa;
+  --panel: #ffffff;
+  --line: #d5dde3;
+  --text: #162027;
+  --muted: #687781;
   font-synthesis: none;
   text-rendering: geometricPrecision;
 }
@@ -25,11 +35,11 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-rows: 64px minmax(0, 1fr) 32px;
+  grid-template-rows: 68px minmax(0, 1fr) 32px;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #e9eef2;
+  background: var(--chrome);
 }
 
 .topbar,
@@ -37,9 +47,11 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #d5dde3;
-  background: #ffffff;
-  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(97, 214, 201, 0.09), transparent 42%),
+    var(--chrome);
+  padding: 0 18px;
 }
 
 .brand {
@@ -49,14 +61,11 @@ button {
   min-width: 0;
 }
 
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: #14232c;
-  color: #65d3c7;
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 
 h1,
@@ -66,7 +75,8 @@ p {
 }
 
 h1 {
-  font-size: 16px;
+  color: #f8fbfc;
+  font-size: 17px;
   font-weight: 760;
   letter-spacing: 0;
 }
@@ -74,7 +84,7 @@ h1 {
 .brand p {
   margin-top: 2px;
   font-size: 12px;
-  color: #687781;
+  color: #9fb5be;
 }
 
 .top-actions {
@@ -88,8 +98,8 @@ h1 {
 .rail-button,
 .segmented button,
 .drop-zone {
-  border: 1px solid #cbd5dc;
-  background: #ffffff;
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: #1d2a32;
   cursor: pointer;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
@@ -107,9 +117,65 @@ h1 {
 }
 
 .text-button.secondary {
-  background: #17313a;
-  border-color: #17313a;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #082524;
+}
+
+.topbar .text-button,
+.topbar .icon-button {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6fbfc;
+}
+
+.topbar .text-button:hover,
+.topbar .icon-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(97, 214, 201, 0.6);
+}
+
+.topbar .text-button.secondary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #092927;
+}
+
+.app-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.app-state span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #9fb5be;
+}
+
+.state-loaded span {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(97, 214, 201, 0.14);
+}
+
+.state-parsing span,
+.state-loading span {
+  background: var(--accent-2);
+  box-shadow: 0 0 0 4px rgba(255, 176, 32, 0.14);
+}
+
+.state-error span {
+  background: #ff6b5f;
+  box-shadow: 0 0 0 4px rgba(255, 107, 95, 0.14);
 }
 
 .icon-button,
@@ -131,24 +197,50 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 294px;
+  grid-template-columns: 64px minmax(0, 1fr) 310px;
   min-height: 0;
+  background: #e8eef2;
 }
 
 .tool-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 8px;
-  border-right: 1px solid #d5dde3;
-  background: #f8fafb;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--chrome-2);
+}
+
+.rail-group-label {
+  width: 100%;
+  margin-top: 3px;
+  color: #78909b;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.rail-spacer {
+  flex: 1;
 }
 
 .rail-button.active {
-  background: #17313a;
-  border-color: #17313a;
-  color: #8be1d5;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #092927;
+}
+
+.rail-button {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  color: #d7e4e8;
+}
+
+.rail-button:hover {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(97, 214, 201, 0.55);
+  color: #ffffff;
 }
 
 .viewport-wrap {
@@ -173,7 +265,7 @@ h1 {
   background:
     linear-gradient(90deg, rgba(21, 41, 50, 0.05) 1px, transparent 1px),
     linear-gradient(rgba(21, 41, 50, 0.05) 1px, transparent 1px),
-    #f6f8fa;
+    var(--paper);
   background-size: 48px 48px;
 }
 
@@ -193,8 +285,8 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: min(420px, calc(100% - 36px));
-  min-height: 176px;
+  width: min(460px, calc(100% - 36px));
+  min-height: 214px;
   padding: 28px;
   transform: translate(-50%, -50%);
   border-radius: 8px;
@@ -202,6 +294,12 @@ h1 {
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 24px 60px rgba(24, 36, 44, 0.12);
   text-align: center;
+}
+
+.drop-zone img {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
 }
 
 .drop-zone span {
@@ -219,8 +317,8 @@ h1 {
 .inspector {
   min-height: 0;
   overflow: auto;
-  border-left: 1px solid #d5dde3;
-  background: #ffffff;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .panel {
@@ -230,7 +328,7 @@ h1 {
 
 .panel h2 {
   margin-bottom: 12px;
-  color: #23313a;
+  color: #20303a;
   font-size: 13px;
   font-weight: 780;
 }
@@ -283,7 +381,7 @@ h1 {
 
 .segmented button.selected {
   background: #dff8f5;
-  border-color: #63cfc2;
+  border-color: var(--accent);
   color: #0d5952;
 }
 
@@ -354,9 +452,9 @@ h1 {
 .statusbar {
   gap: 18px;
   justify-content: flex-start;
-  border-top: 1px solid #d5dde3;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-bottom: 0;
-  color: #5f707a;
+  color: #a8bbc3;
   font-size: 12px;
 }
 

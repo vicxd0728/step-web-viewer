@@ -89,14 +89,18 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark"><Layers size={18} /></div>
+          <img className="brand-logo" src="/logo.svg" alt="STP Studio logo" />
           <div>
-            <h1>STEP Viewer</h1>
-            <p>3D STEP browsing, measuring, and markup workspace</p>
+            <h1>STP Studio</h1>
+            <p>3D viewing, measuring, and markup workspace</p>
           </div>
         </div>
 
         <div className="top-actions">
+          <div className={`app-state state-${status}`}>
+            <span />
+            {statusLabel}
+          </div>
           <button className="text-button" onClick={() => inputRef.current?.click()}>
             <Upload size={16} />
             Upload STEP
@@ -116,12 +120,15 @@ function App() {
 
       <section className="workspace">
         <aside className="tool-rail" aria-label="Viewer tools">
+          <div className="rail-group-label">FILE</div>
           <button className="rail-button active" title="Upload file" onClick={() => inputRef.current?.click()}>
             <FileUp size={20} />
           </button>
+          <div className="rail-group-label">VIEW</div>
           <button className="rail-button" title="Fit view" onClick={() => viewerRef.current?.fit()}>
             <Maximize size={20} />
           </button>
+          <div className="rail-group-label">TOOLS</div>
           <button
             className={`rail-button ${activeTool === 'measure' ? 'active' : ''}`}
             title="Point to point measurement"
@@ -132,6 +139,7 @@ function App() {
           <button className="rail-button" title="Clear measurements" onClick={() => viewerRef.current?.clearMeasurements()}>
             <Trash2 size={20} />
           </button>
+          <div className="rail-spacer" />
           <button className={`rail-button ${showGrid ? 'active' : ''}`} title="Grid" onClick={() => setShowGrid((value) => !value)}>
             <Grid3X3 size={20} />
           </button>
@@ -170,9 +178,9 @@ function App() {
 
           {!model && (
             <button className="drop-zone" onClick={() => inputRef.current?.click()}>
-              <FileUp size={28} />
+              <img src="/logo.svg" alt="" />
               <span>Drop .stp / .step here or click to upload</span>
-              <small>The 3D engine loads after upload to keep the interface responsive.</small>
+              <small>STP Studio loads the 3D engine only after upload to keep the app fast.</small>
             </button>
           )}
         </div>
@@ -279,3 +287,9 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(<App />);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
