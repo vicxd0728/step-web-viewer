@@ -4,6 +4,7 @@ import Box from 'lucide-react/dist/esm/icons/box.js';
 import Camera from 'lucide-react/dist/esm/icons/camera.js';
 import Download from 'lucide-react/dist/esm/icons/download.js';
 import Eye from 'lucide-react/dist/esm/icons/eye.js';
+import EyeOff from 'lucide-react/dist/esm/icons/eye-off.js';
 import FileUp from 'lucide-react/dist/esm/icons/file-up.js';
 import Grid3X3 from 'lucide-react/dist/esm/icons/grid-3x3.js';
 import Layers from 'lucide-react/dist/esm/icons/layers.js';
@@ -57,6 +58,8 @@ function App() {
   const [dimensions, setDimensions] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [parts, setParts] = useState([]);
+  const [explodeAmount, setExplodeAmount] = useState(0);
 
   const handleViewerError = useCallback((message) => {
     setError(message);
@@ -71,6 +74,8 @@ function App() {
     setStats(null);
     setDimensions(null);
     setMeasurements([]);
+    setParts([]);
+    setExplodeAmount(0);
     try {
       const buffer = await nextFile.arrayBuffer();
       setModel({ name: nextFile.name, buffer });
@@ -180,6 +185,7 @@ function App() {
                 onStats={setStats}
                 onDimensions={setDimensions}
                 onMeasurements={setMeasurements}
+                onParts={setParts}
               />
             </Suspense>
           ) : (
@@ -269,6 +275,49 @@ function App() {
               <div><dt>Y</dt><dd>{formatLength(dimensions?.y)}</dd></div>
               <div><dt>Z</dt><dd>{formatLength(dimensions?.z)}</dd></div>
             </dl>
+          </section>
+
+          <section className="panel">
+            <h2>Assembly</h2>
+            <div className="assembly-actions">
+              <label className="range-row">
+                <span>Explode</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={explodeAmount}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setExplodeAmount(value);
+                    viewerRef.current?.setExplode(value / 100);
+                  }}
+                />
+              </label>
+              <button onClick={() => {
+                setExplodeAmount(0);
+                viewerRef.current?.restoreAssembly();
+              }}>
+                Restore assembly
+              </button>
+            </div>
+            <div className="part-list">
+              {parts.length === 0 && <span>No parts detected</span>}
+              {parts.map((part) => (
+                <article key={part.id} className={`part-row ${part.visible ? '' : 'is-hidden'} ${part.isolated ? 'is-isolated' : ''}`}>
+                  <button className="part-main" onClick={() => viewerRef.current?.focusPart(part.id)}>
+                    <strong>{part.name}</strong>
+                    <small>{part.triangles.toLocaleString()} triangles</small>
+                  </button>
+                  <button title={part.visible ? 'Hide part' : 'Show part'} onClick={() => viewerRef.current?.togglePart(part.id)}>
+                    {part.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                  <button title="Isolate part" onClick={() => viewerRef.current?.isolatePart(part.id)}>
+                    Solo
+                  </button>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="panel">

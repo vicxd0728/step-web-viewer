@@ -174,6 +174,7 @@ const StepViewport = forwardRef(function StepViewport({
   onStats,
   onDimensions,
   onMeasurements,
+  onParts,
 }, ref) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
@@ -190,6 +191,8 @@ const StepViewport = forwardRef(function StepViewport({
   const pendingPointRef = useRef(null);
   const measurementsRef = useRef([]);
   const nextMeasurementIdRef = useRef(1);
+  const partsRef = useRef([]);
+  const explodeAmountRef = useRef(0);
 
   useEffect(() => {
     displayModeRef.current = displayMode;
@@ -204,6 +207,23 @@ const StepViewport = forwardRef(function StepViewport({
     onMeasurements([...measurementsRef.current]);
   }, [onMeasurements]);
 
+  const publishParts = useCallback(() => {
+    onParts(partsRef.current.map((part) => ({
+      id: part.id,
+      name: part.name,
+      triangles: part.triangles,
+      visible: part.group.visible,
+      isolated: part.isolated,
+    })));
+  }, [onParts]);
+
+  const applyExplode = useCallback((amount) => {
+    explodeAmountRef.current = amount;
+    for (const part of partsRef.current) {
+      part.group.position.copy(part.basePosition).add(part.explodeVector.clone().multiplyScalar(amount));
+    }
+  }, []);
+
   const clearMeasurements = useCallback(() => {
     disposeObject(measurementGroupRef.current);
     measurementGroupRef.current.clear();
@@ -212,31 +232,72 @@ const StepViewport = forwardRef(function StepViewport({
     publishMeasurements();
   }, [publishMeasurements]);
 
+  const showAllParts = useCallback(() => {
+    for (const part of partsRef.current) {
+      part.group.visible = true;
+      part.isolated = false;
+    }
+    publishParts();
+  }, [publishParts]);
+
   const rebuildScene = useCallback((result, mode) => {
     const group = modelGroupRef.current;
     disposeObject(group);
     group.clear();
+    partsRef.current = [];
 
     let triangles = 0;
     let edges = 0;
-    for (const resultMesh of result.meshes) {
+    const temporaryParts = [];
+
+    result.meshes.forEach((resultMesh, index) => {
       const { mesh, edgeLines } = buildMesh(resultMesh, mode);
-      triangles += Math.floor((resultMesh.index?.array?.length ?? 0) / 3);
-      group.add(mesh);
+      const partTriangles = Math.floor((resultMesh.index?.array?.length ?? 0) / 3);
+      triangles += partTriangles;
+      const partGroup = new THREE.Group();
+      partGroup.name = resultMesh.name || `Part ${index + 1}`;
+      partGroup.userData.partId = index + 1;
+      partGroup.add(mesh);
       for (const line of edgeLines) {
         edges += line.geometry.attributes.position.count / 2;
-        group.add(line);
+        partGroup.add(line);
       }
-    }
+      temporaryParts.push({
+        id: index + 1,
+        name: partGroup.name,
+        triangles: partTriangles,
+        group: partGroup,
+        basePosition: new THREE.Vector3(),
+        center: new THREE.Vector3(),
+        explodeVector: new THREE.Vector3(),
+        isolated: false,
+      });
+      group.add(partGroup);
+    });
 
     const box = getModelBox(group);
     if (box) {
       const size = box.getSize(new THREE.Vector3());
+      const modelCenter = box.getCenter(new THREE.Vector3());
+      const maxSize = Math.max(size.x, size.y, size.z);
       onDimensions({ x: size.x, y: size.y, z: size.z });
+      for (const part of temporaryParts) {
+        const partBox = getModelBox(part.group);
+        if (!partBox) continue;
+        partBox.getCenter(part.center);
+        part.explodeVector.copy(part.center).sub(modelCenter);
+        if (part.explodeVector.lengthSq() < 0.0001) {
+          part.explodeVector.set(Math.cos(part.id), Math.sin(part.id), 0.25);
+        }
+        part.explodeVector.normalize().multiplyScalar(maxSize * 0.55);
+      }
     }
+    partsRef.current = temporaryParts;
+    applyExplode(explodeAmountRef.current);
+    publishParts();
     onStats({ meshes: result.meshes.length, triangles, edges: Math.round(edges) });
     fitCamera(cameraRef.current, controlsRef.current, group);
-  }, [onDimensions, onStats]);
+  }, [applyExplode, onDimensions, onStats, publishParts]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -377,6 +438,8 @@ const StepViewport = forwardRef(function StepViewport({
       onStatus('parsing');
       try {
         clearMeasurements();
+        partsRef.current = [];
+        publishParts();
         const { default: occtimportjs } = await import('occt-import-js');
         const occt = await occtimportjs({
           locateFile: (fileName) => `/${fileName}`,
@@ -400,7 +463,7 @@ const StepViewport = forwardRef(function StepViewport({
     return () => {
       cancelled = true;
     };
-  }, [model, rebuildScene, clearMeasurements, onError, onStatus]);
+  }, [model, rebuildScene, clearMeasurements, onError, onStatus, publishParts]);
 
   useEffect(() => {
     if (parsedResultRef.current) {
@@ -411,6 +474,40 @@ const StepViewport = forwardRef(function StepViewport({
   useImperativeHandle(ref, () => ({
     fit() {
       fitCamera(cameraRef.current, controlsRef.current, modelGroupRef.current);
+    },
+    setExplode(amount) {
+      applyExplode(amount);
+    },
+    restoreAssembly() {
+      applyExplode(0);
+      showAllParts();
+      fitCamera(cameraRef.current, controlsRef.current, modelGroupRef.current);
+    },
+    togglePart(id) {
+      const part = partsRef.current.find((item) => item.id === id);
+      if (!part) return;
+      part.group.visible = !part.group.visible;
+      part.isolated = false;
+      publishParts();
+    },
+    isolatePart(id) {
+      const target = partsRef.current.find((item) => item.id === id);
+      if (!target) return;
+      const shouldReset = target.isolated && partsRef.current.every((item) => item.group.visible === (item.id === id));
+      if (shouldReset) {
+        showAllParts();
+        return;
+      }
+      for (const part of partsRef.current) {
+        part.group.visible = part.id === id;
+        part.isolated = part.id === id;
+      }
+      publishParts();
+      fitCamera(cameraRef.current, controlsRef.current, target.group);
+    },
+    focusPart(id) {
+      const part = partsRef.current.find((item) => item.id === id);
+      if (part) fitCamera(cameraRef.current, controlsRef.current, part.group);
     },
     setView(viewName) {
       fitCamera(cameraRef.current, controlsRef.current, modelGroupRef.current, viewName);
