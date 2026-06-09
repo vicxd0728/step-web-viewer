@@ -9,6 +9,8 @@ import Grid3X3 from 'lucide-react/dist/esm/icons/grid-3x3.js';
 import Layers from 'lucide-react/dist/esm/icons/layers.js';
 import Maximize from 'lucide-react/dist/esm/icons/maximize.js';
 import Moon from 'lucide-react/dist/esm/icons/moon.js';
+import PanelRightClose from 'lucide-react/dist/esm/icons/panel-right-close.js';
+import PanelRightOpen from 'lucide-react/dist/esm/icons/panel-right-open.js';
 import Ruler from 'lucide-react/dist/esm/icons/ruler.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
 import ScanLine from 'lucide-react/dist/esm/icons/scan-line.js';
@@ -54,6 +56,7 @@ function App() {
   const [stats, setStats] = useState(null);
   const [dimensions, setDimensions] = useState(null);
   const [measurements, setMeasurements] = useState([]);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const handleViewerError = useCallback((message) => {
     setError(message);
@@ -110,6 +113,13 @@ function App() {
           </button>
           <button className="icon-button" title="Screenshot" onClick={() => viewerRef.current?.capture()}>
             <Camera size={17} />
+          </button>
+          <button
+            className="icon-button panel-toggle"
+            title={inspectorOpen ? 'Hide panel' : 'Show panel'}
+            onClick={() => setInspectorOpen((value) => !value)}
+          >
+            {inspectorOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
           </button>
           <button className="text-button secondary" onClick={() => viewerRef.current?.exportGlb()}>
             <Download size={16} />
@@ -183,9 +193,25 @@ function App() {
               <small>STP Studio loads the 3D engine only after upload to keep the app fast.</small>
             </button>
           )}
+          <button
+            className="mobile-panel-fab"
+            onClick={() => setInspectorOpen((value) => !value)}
+            aria-label={inspectorOpen ? 'Hide inspector panel' : 'Show inspector panel'}
+          >
+            {inspectorOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+            Panel
+          </button>
         </div>
 
-        <aside className="inspector">
+        {inspectorOpen && <button className="mobile-panel-backdrop" aria-label="Close panel" onClick={() => setInspectorOpen(false)} />}
+
+        <aside className={`inspector ${inspectorOpen ? 'is-open' : ''}`}>
+          <div className="inspector-mobile-header">
+            <strong>Model Panel</strong>
+            <button onClick={() => setInspectorOpen(false)} aria-label="Close panel">
+              <PanelRightClose size={18} />
+            </button>
+          </div>
           <section className="panel">
             <h2>File</h2>
             <dl className="meta-list">

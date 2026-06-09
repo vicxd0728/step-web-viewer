@@ -93,6 +93,10 @@ h1 {
   gap: 8px;
 }
 
+.panel-toggle {
+  display: none;
+}
+
 .text-button,
 .icon-button,
 .rail-button,
@@ -219,6 +223,7 @@ h1 {
   font-size: 9px;
   font-weight: 800;
   text-align: center;
+  overflow: hidden;
 }
 
 .rail-spacer {
@@ -247,6 +252,12 @@ h1 {
   position: relative;
   min-width: 0;
   min-height: 0;
+}
+
+.mobile-panel-fab,
+.mobile-panel-backdrop,
+.inspector-mobile-header {
+  display: none;
 }
 
 .viewport {
@@ -303,15 +314,27 @@ h1 {
 }
 
 .drop-zone span {
+  width: 100%;
+  min-width: 0;
   font-size: 16px;
   font-weight: 760;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .drop-zone small {
+  width: 100%;
+  min-width: 0;
   max-width: 320px;
   color: #6c7c86;
   font-size: 12px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .inspector {
@@ -471,19 +494,200 @@ h1 {
 
 @media (max-width: 900px) {
   .app-shell {
-    grid-template-rows: auto minmax(0, 1fr) 32px;
+    grid-template-rows: auto minmax(0, 1fr) 30px;
   }
 
   .topbar {
     align-items: flex-start;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px;
+    gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  h1 {
+    font-size: 15px;
+  }
+
+  .brand p {
+    max-width: 270px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
   }
 
   .top-actions {
     width: 100%;
     overflow-x: auto;
+    gap: 7px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .top-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .topbar .text-button,
+  .topbar .icon-button,
+  .app-state {
+    flex: 0 0 auto;
+    min-height: 34px;
+  }
+
+  .topbar .text-button {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .topbar .text-button.secondary {
+    min-width: auto;
+  }
+
+  .app-state {
+    max-width: 140px;
+    font-size: 12px;
+  }
+
+  .panel-toggle {
+    display: grid;
+  }
+
+  .workspace {
+    grid-template-columns: 52px minmax(0, 1fr);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tool-rail {
+    gap: 7px;
+    padding: 10px 6px;
+  }
+
+  .rail-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .rail-group-label {
+    font-size: 8px;
+  }
+
+  .mobile-panel-fab {
+    position: absolute;
+    left: 12px;
+    bottom: 48px;
+    z-index: 6;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid rgba(16, 24, 32, 0.12);
+    border-radius: 999px;
+    background: rgba(16, 24, 32, 0.9);
+    color: #ffffff;
+    box-shadow: 0 14px 34px rgba(16, 24, 32, 0.22);
+    font-size: 12px;
+    font-weight: 760;
+  }
+
+  .mobile-panel-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: block;
+    border: 0;
+    background: rgba(16, 24, 32, 0.28);
+    cursor: pointer;
+  }
+
+  .inspector {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 9;
+    width: min(340px, calc(100vw - 52px));
+    max-height: none;
+    border-top: 0;
+    box-shadow: -18px 0 44px rgba(16, 24, 32, 0.22);
+    transform: translateX(105%);
+    transition: transform 180ms ease;
+  }
+
+  .inspector.is-open {
+    transform: translateX(0);
+  }
+
+  .inspector-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 48px;
+    border-bottom: 1px solid #e2e8ed;
+    background: #ffffff;
+    padding: 0 14px;
+  }
+
+  .inspector-mobile-header strong {
+    color: #20303a;
+    font-size: 13px;
+  }
+
+  .inspector-mobile-header button {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #cbd5dc;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #1d2a32;
+  }
+
+  .statusbar {
+    gap: 12px;
+    overflow-x: auto;
+    padding: 0 10px;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .statusbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .app-state {
+    max-width: 118px;
+    padding: 0 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .text-button.secondary {
+    padding: 0 12px;
   }
 
   .workspace {
@@ -491,12 +695,25 @@ h1 {
   }
 
   .inspector {
-    position: absolute;
-    right: 0;
-    bottom: 32px;
-    width: min(320px, 86vw);
-    max-height: 38vh;
-    border-top: 1px solid #d5dde3;
-    box-shadow: 0 -18px 50px rgba(24, 36, 44, 0.14);
+    width: min(330px, calc(100vw - 48px));
+  }
+
+  .drop-zone {
+    width: min(280px, calc(100% - 26px));
+    min-height: 190px;
+    padding: 22px 18px;
+  }
+
+  .drop-zone img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .drop-zone span {
+    font-size: 14px;
+  }
+
+  .drop-zone small {
+    font-size: 11px;
   }
 }
