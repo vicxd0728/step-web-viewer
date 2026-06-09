@@ -163,12 +163,70 @@ function makeMeasurement(id, start, end) {
   return { group, data: { id, distance, start: start.toArray(), end: end.toArray() } };
 }
 
+function makeLine(points, color = 0xffb020) {
+  return new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color, depthTest: false, depthWrite: false }),
+  );
+}
+
+function addDimensionLine(group, label, start, end, tickAxis, labelLift = new THREE.Vector3()) {
+  const tickSize = Math.max(start.distanceTo(end) * 0.035, 3);
+  const tick = tickAxis.clone().normalize().multiplyScalar(tickSize);
+  group.add(makeLine([start, end]));
+  group.add(makeLine([start.clone().sub(tick), start.clone().add(tick)]));
+  group.add(makeLine([end.clone().sub(tick), end.clone().add(tick)]));
+  const sprite = makeTextSprite(label);
+  sprite.position.copy(start).add(end).multiplyScalar(0.5).add(labelLift);
+  group.add(sprite);
+}
+
+function makeAutoDimensionGroup(box) {
+  const group = new THREE.Group();
+  group.name = 'Auto dimensions';
+  const size = box.getSize(new THREE.Vector3());
+  const maxSize = Math.max(size.x, size.y, size.z);
+  const offset = Math.max(maxSize * 0.12, 8);
+  const min = box.min;
+  const max = box.max;
+
+  addDimensionLine(
+    group,
+    `X ${formatDistance(size.x)}`,
+    new THREE.Vector3(min.x, min.y - offset, min.z - offset),
+    new THREE.Vector3(max.x, min.y - offset, min.z - offset),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, -offset * 0.18, 0),
+  );
+
+  addDimensionLine(
+    group,
+    `Y ${formatDistance(size.y)}`,
+    new THREE.Vector3(max.x + offset, min.y, min.z - offset),
+    new THREE.Vector3(max.x + offset, max.y, min.z - offset),
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(offset * 0.18, 0, 0),
+  );
+
+  addDimensionLine(
+    group,
+    `Z ${formatDistance(size.z)}`,
+    new THREE.Vector3(max.x + offset, max.y + offset, min.z),
+    new THREE.Vector3(max.x + offset, max.y + offset, max.z),
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(offset * 0.18, offset * 0.18, 0),
+  );
+
+  return group;
+}
+
 const StepViewport = forwardRef(function StepViewport({
   model,
   displayMode,
   activeTool,
   showGrid,
   darkCanvas,
+  showAutoDimensions,
   onStatus,
   onError,
   onStats,
@@ -183,11 +241,14 @@ const StepViewport = forwardRef(function StepViewport({
   const rendererRef = useRef(null);
   const modelGroupRef = useRef(new THREE.Group());
   const measurementGroupRef = useRef(new THREE.Group());
+  const dimensionGroupRef = useRef(new THREE.Group());
   const gridRef = useRef(null);
+  const modelBoxRef = useRef(null);
   const parsedResultRef = useRef(null);
   const mountedRef = useRef(true);
   const displayModeRef = useRef(displayMode);
   const activeToolRef = useRef(activeTool);
+  const showAutoDimensionsRef = useRef(showAutoDimensions);
   const pendingPointRef = useRef(null);
   const measurementsRef = useRef([]);
   const nextMeasurementIdRef = useRef(1);
@@ -197,6 +258,10 @@ const StepViewport = forwardRef(function StepViewport({
   useEffect(() => {
     displayModeRef.current = displayMode;
   }, [displayMode]);
+
+  useEffect(() => {
+    showAutoDimensionsRef.current = showAutoDimensions;
+  }, [showAutoDimensions]);
 
   useEffect(() => {
     activeToolRef.current = activeTool;
@@ -222,6 +287,13 @@ const StepViewport = forwardRef(function StepViewport({
     for (const part of partsRef.current) {
       part.group.position.copy(part.basePosition).add(part.explodeVector.clone().multiplyScalar(amount));
     }
+  }, []);
+
+  const rebuildAutoDimensions = useCallback((visible) => {
+    disposeObject(dimensionGroupRef.current);
+    dimensionGroupRef.current.clear();
+    if (!visible || !modelBoxRef.current) return;
+    dimensionGroupRef.current.add(makeAutoDimensionGroup(modelBoxRef.current));
   }, []);
 
   const clearMeasurements = useCallback(() => {
@@ -277,6 +349,7 @@ const StepViewport = forwardRef(function StepViewport({
 
     const box = getModelBox(group);
     if (box) {
+      modelBoxRef.current = box.clone();
       const size = box.getSize(new THREE.Vector3());
       const modelCenter = box.getCenter(new THREE.Vector3());
       const maxSize = Math.max(size.x, size.y, size.z);
@@ -294,10 +367,11 @@ const StepViewport = forwardRef(function StepViewport({
     }
     partsRef.current = temporaryParts;
     applyExplode(explodeAmountRef.current);
+    rebuildAutoDimensions(showAutoDimensionsRef.current);
     publishParts();
     onStats({ meshes: result.meshes.length, triangles, edges: Math.round(edges) });
     fitCamera(cameraRef.current, controlsRef.current, group);
-  }, [applyExplode, onDimensions, onStats, publishParts]);
+  }, [applyExplode, onDimensions, onStats, publishParts, rebuildAutoDimensions]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -333,6 +407,7 @@ const StepViewport = forwardRef(function StepViewport({
 
     scene.add(modelGroupRef.current);
     scene.add(measurementGroupRef.current);
+    scene.add(dimensionGroupRef.current);
 
     sceneRef.current = scene;
     cameraRef.current = camera;
@@ -414,6 +489,7 @@ const StepViewport = forwardRef(function StepViewport({
       renderer.setAnimationLoop(null);
       disposeObject(modelGroupRef.current);
       disposeObject(measurementGroupRef.current);
+      disposeObject(dimensionGroupRef.current);
       controls.dispose();
       renderer.dispose();
       container.removeChild(renderer.domElement);
@@ -429,6 +505,10 @@ const StepViewport = forwardRef(function StepViewport({
       gridRef.current.material.transparent = true;
     }
   }, [darkCanvas, showGrid]);
+
+  useEffect(() => {
+    rebuildAutoDimensions(showAutoDimensions);
+  }, [showAutoDimensions, rebuildAutoDimensions]);
 
   useEffect(() => {
     if (!model) return;

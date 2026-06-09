@@ -1,6 +1,5 @@
-const CACHE_NAME = 'stp-studio-shell-v1';
-const SHELL_ASSETS = [
-  '/',
+const CACHE_NAME = 'stp-studio-shell-v2';
+const STATIC_ASSETS = [
   '/logo.svg',
   '/manifest.webmanifest',
   '/occt-import-js.wasm',
@@ -8,7 +7,7 @@ const SHELL_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
   );
   self.skipWaiting();
 });
@@ -22,9 +21,36 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isStaticAsset = isSameOrigin && STATIC_ASSETS.includes(url.pathname);
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('STP Studio is offline. Reconnect and reload.', {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      })),
+    );
+    return;
+  }
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => cached || fetch(event.request)),
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)),
+    fetch(event.request).catch(() => caches.match(event.request)),
   );
 });

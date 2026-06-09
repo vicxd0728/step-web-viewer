@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Box from 'lucide-react/dist/esm/icons/box.js';
 import Camera from 'lucide-react/dist/esm/icons/camera.js';
@@ -13,6 +13,7 @@ import Moon from 'lucide-react/dist/esm/icons/moon.js';
 import PanelRightClose from 'lucide-react/dist/esm/icons/panel-right-close.js';
 import PanelRightOpen from 'lucide-react/dist/esm/icons/panel-right-open.js';
 import Ruler from 'lucide-react/dist/esm/icons/ruler.js';
+import ScanSearch from 'lucide-react/dist/esm/icons/scan-search.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
 import ScanLine from 'lucide-react/dist/esm/icons/scan-line.js';
 import Sun from 'lucide-react/dist/esm/icons/sun.js';
@@ -60,6 +61,14 @@ function App() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [parts, setParts] = useState([]);
   const [explodeAmount, setExplodeAmount] = useState(0);
+  const [showAutoDimensions, setShowAutoDimensions] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
+
+  useEffect(() => {
+    const onUpdateReady = () => setUpdateReady(true);
+    window.addEventListener('stp-studio-update-ready', onUpdateReady);
+    return () => window.removeEventListener('stp-studio-update-ready', onUpdateReady);
+  }, []);
 
   const handleViewerError = useCallback((message) => {
     setError(message);
@@ -76,6 +85,7 @@ function App() {
     setMeasurements([]);
     setParts([]);
     setExplodeAmount(0);
+    setShowAutoDimensions(false);
     try {
       const buffer = await nextFile.arrayBuffer();
       setModel({ name: nextFile.name, buffer });
@@ -180,6 +190,7 @@ function App() {
                 activeTool={activeTool}
                 showGrid={showGrid}
                 darkCanvas={darkCanvas}
+                showAutoDimensions={showAutoDimensions}
                 onStatus={setStatus}
                 onError={handleViewerError}
                 onStats={setStats}
@@ -275,6 +286,13 @@ function App() {
               <div><dt>Y</dt><dd>{formatLength(dimensions?.y)}</dd></div>
               <div><dt>Z</dt><dd>{formatLength(dimensions?.z)}</dd></div>
             </dl>
+            <button
+              className={`wide-action ${showAutoDimensions ? 'is-active' : ''}`}
+              onClick={() => setShowAutoDimensions((value) => !value)}
+            >
+              <ScanSearch size={15} />
+              {showAutoDimensions ? 'Hide auto dimensions' : 'Show auto dimensions'}
+            </button>
           </section>
 
           <section className="panel">
@@ -357,6 +375,11 @@ function App() {
         accept=".stp,.step"
         onChange={(event) => onFile(event.target.files?.[0])}
       />
+      {updateReady && (
+        <button className="update-toast" onClick={() => window.location.reload()}>
+          New version ready. Tap to refresh.
+        </button>
+      )}
     </main>
   );
 }
@@ -365,6 +388,24 @@ createRoot(document.getElementById('root')).render(<App />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      const notifyUpdate = (worker) => {
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            window.dispatchEvent(new CustomEvent('stp-studio-update-ready'));
+          }
+        });
+      };
+      notifyUpdate(registration.waiting);
+      registration.addEventListener('updatefound', () => notifyUpdate(registration.installing));
+      setInterval(() => registration.update(), 60 * 60 * 1000);
+    }).catch(() => {});
   });
 }
