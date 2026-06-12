@@ -130,13 +130,29 @@ function makeTextSprite(text, options = {}) {
   return sprite;
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getLabelScale(referenceLength, text, options = {}) {
+  const minHeight = options.minHeight ?? 3.2;
+  const maxHeight = options.maxHeight ?? 8.5;
+  const heightRatio = options.heightRatio ?? 0.18;
+  const height = clamp(referenceLength * heightRatio, minHeight, maxHeight);
+  const aspect = clamp(text.length * 0.34, 3.7, 6.4);
+  return {
+    scaleX: height * aspect,
+    scaleY: height,
+  };
+}
+
 function formatDistance(value) {
   return `${value.toFixed(2)} mm`;
 }
 
-function makePointMarker(point) {
+function makePointMarker(point, radius = 1.4) {
   const marker = new THREE.Mesh(
-    new THREE.SphereGeometry(1.4, 16, 12),
+    new THREE.SphereGeometry(radius, 16, 12),
     new THREE.MeshBasicMaterial({ color: 0x0fb7a7, depthTest: false }),
   );
   marker.position.copy(point);
@@ -155,12 +171,17 @@ function makeMeasurement(id, start, end) {
     new THREE.LineBasicMaterial({ color: 0xffb020, depthTest: false, depthWrite: false }),
   );
   group.add(line);
-  group.add(makePointMarker(start));
-  group.add(makePointMarker(end));
+  const markerRadius = clamp(distance * 0.025, 0.45, 1.4);
+  group.add(makePointMarker(start, markerRadius));
+  group.add(makePointMarker(end, markerRadius));
 
-  const label = makeTextSprite(`M${id} ${formatDistance(distance)}`);
+  const labelText = `M${id} ${formatDistance(distance)}`;
+  const label = makeTextSprite(labelText, {
+    fontSize: 22,
+    ...getLabelScale(distance, labelText),
+  });
   label.position.copy(start).add(end).multiplyScalar(0.5);
-  label.position.z += Math.max(distance * 0.035, 4);
+  label.position.z += clamp(distance * 0.12, 2.5, 9);
   group.add(label);
 
   return { group, data: { id, distance, start: start.toArray(), end: end.toArray() } };
@@ -173,13 +194,16 @@ function makeLine(points, color = 0xffb020) {
   );
 }
 
-function addDimensionLine(group, label, start, end, tickAxis, labelLift = new THREE.Vector3()) {
+function addDimensionLine(group, label, start, end, tickAxis, labelLift = new THREE.Vector3(), modelSize = 100) {
   const tickSize = Math.max(start.distanceTo(end) * 0.035, 3);
   const tick = tickAxis.clone().normalize().multiplyScalar(tickSize);
   group.add(makeLine([start, end]));
   group.add(makeLine([start.clone().sub(tick), start.clone().add(tick)]));
   group.add(makeLine([end.clone().sub(tick), end.clone().add(tick)]));
-  const sprite = makeTextSprite(label, { fontSize: 30, scaleX: 72, scaleY: 19 });
+  const sprite = makeTextSprite(label, {
+    fontSize: 24,
+    ...getLabelScale(modelSize, label, { heightRatio: 0.03, minHeight: 4, maxHeight: 10 }),
+  });
   sprite.position.copy(start).add(end).multiplyScalar(0.5).add(labelLift);
   group.add(sprite);
 }
@@ -200,6 +224,7 @@ function makeAutoDimensionGroup(box) {
     new THREE.Vector3(max.x, min.y - offset, min.z - offset),
     new THREE.Vector3(0, 1, 0),
     new THREE.Vector3(0, -offset * 0.18, 0),
+    maxSize,
   );
 
   addDimensionLine(
@@ -209,6 +234,7 @@ function makeAutoDimensionGroup(box) {
     new THREE.Vector3(max.x + offset, max.y, min.z - offset),
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(offset * 0.18, 0, 0),
+    maxSize,
   );
 
   addDimensionLine(
@@ -218,6 +244,7 @@ function makeAutoDimensionGroup(box) {
     new THREE.Vector3(max.x + offset, max.y + offset, max.z),
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(offset * 0.18, offset * 0.18, 0),
+    maxSize,
   );
 
   return group;
