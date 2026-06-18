@@ -513,6 +513,64 @@ h1 {
   color: #0d5952;
 }
 
+.quick-link-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-link-card {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 18px;
+  gap: 9px;
+  align-items: center;
+  min-height: 48px;
+  border: 1px solid #cbd5dc;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1d2a32;
+  padding: 8px;
+  text-decoration: none;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.quick-link-card:hover {
+  border-color: rgba(97, 214, 201, 0.75);
+  background: #effafa;
+}
+
+.quick-link-card span {
+  min-width: 0;
+}
+
+.quick-link-card strong,
+.quick-link-card small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-link-card strong {
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.quick-link-card small {
+  margin-top: 2px;
+  color: #75848d;
+  font-size: 10px;
+}
+
+.quick-link-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: #dff8f5;
+  color: #0d5952;
+}
+
 .part-list {
   display: grid;
   gap: 8px;

@@ -2,13 +2,16 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import { createRoot } from 'react-dom/client';
 import Box from 'lucide-react/dist/esm/icons/box.js';
 import Camera from 'lucide-react/dist/esm/icons/camera.js';
+import Cloud from 'lucide-react/dist/esm/icons/cloud.js';
 import Download from 'lucide-react/dist/esm/icons/download.js';
 import Eye from 'lucide-react/dist/esm/icons/eye.js';
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off.js';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link.js';
 import FileUp from 'lucide-react/dist/esm/icons/file-up.js';
+import Github from 'lucide-react/dist/esm/icons/github.js';
 import Grid3X3 from 'lucide-react/dist/esm/icons/grid-3x3.js';
-import Layers from 'lucide-react/dist/esm/icons/layers.js';
 import Maximize from 'lucide-react/dist/esm/icons/maximize.js';
+import Monitor from 'lucide-react/dist/esm/icons/monitor.js';
 import Moon from 'lucide-react/dist/esm/icons/moon.js';
 import PanelRightClose from 'lucide-react/dist/esm/icons/panel-right-close.js';
 import PanelRightOpen from 'lucide-react/dist/esm/icons/panel-right-open.js';
@@ -29,6 +32,33 @@ const displayModes = [
   { id: 'shaded', label: 'Shaded', icon: Box },
   { id: 'edges', label: 'Edges', icon: Waypoints },
   { id: 'wireframe', label: 'Wire', icon: ScanLine },
+];
+
+const quickLinks = [
+  {
+    label: 'Live STP Studio',
+    description: 'Cloudflare Pages public app',
+    href: 'https://step-web-viewer.pages.dev/',
+    icon: Cloud,
+  },
+  {
+    label: 'GitHub repository',
+    description: 'Source code and deployment history',
+    href: 'https://github.com/vicxd0728/step-web-viewer',
+    icon: Github,
+  },
+  {
+    label: 'Cloudflare project',
+    description: 'Pages settings and deployments',
+    href: 'https://dash.cloudflare.com/e933d3daf916cba77469f0b8a4202a8a/workers-and-pages/view/step-web-viewer',
+    icon: Cloud,
+  },
+  {
+    label: 'Local preview',
+    description: 'This computer, port 5181',
+    href: 'http://127.0.0.1:5181/',
+    icon: Monitor,
+  },
 ];
 
 const statusText = {
@@ -252,6 +282,25 @@ function App() {
               <div><dt>Status</dt><dd>{statusLabel}</dd></div>
             </dl>
             {error && <p className="error">{error}</p>}
+          </section>
+
+          <section className="panel">
+            <h2>Quick Links</h2>
+            <div className="quick-link-list">
+              {quickLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <a key={link.href} className="quick-link-card" href={link.href} target="_blank" rel="noreferrer">
+                    <span className="quick-link-icon"><Icon size={15} /></span>
+                    <span>
+                      <strong>{link.label}</strong>
+                      <small>{link.description}</small>
+                    </span>
+                    <ExternalLink size={13} />
+                  </a>
+                );
+              })}
+            </div>
           </section>
 
           <section className="panel">
