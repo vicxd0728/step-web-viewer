@@ -7,6 +7,7 @@ import Eye from 'lucide-react/dist/esm/icons/eye.js';
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off.js';
 import FileUp from 'lucide-react/dist/esm/icons/file-up.js';
 import Grid3X3 from 'lucide-react/dist/esm/icons/grid-3x3.js';
+import Hand from 'lucide-react/dist/esm/icons/hand.js';
 import Layers from 'lucide-react/dist/esm/icons/layers.js';
 import Maximize from 'lucide-react/dist/esm/icons/maximize.js';
 import Moon from 'lucide-react/dist/esm/icons/moon.js';
@@ -15,6 +16,8 @@ import PanelRightOpen from 'lucide-react/dist/esm/icons/panel-right-open.js';
 import Ruler from 'lucide-react/dist/esm/icons/ruler.js';
 import ScanSearch from 'lucide-react/dist/esm/icons/scan-search.js';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw.js';
+import Rotate3D from 'lucide-react/dist/esm/icons/rotate-3d.js';
+import Scan from 'lucide-react/dist/esm/icons/scan.js';
 import ScanLine from 'lucide-react/dist/esm/icons/scan-line.js';
 import Sun from 'lucide-react/dist/esm/icons/sun.js';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2.js';
@@ -28,8 +31,17 @@ const StepViewport = lazy(() => import('./step-viewport.jsx'));
 const displayModes = [
   { id: 'shaded', label: 'Shaded', icon: Box },
   { id: 'edges', label: 'Edges', icon: Waypoints },
+  { id: 'flat', label: 'Flat', icon: Layers },
+  { id: 'xray', label: 'X-Ray', icon: Eye },
+  { id: 'hidden', label: 'Hidden', icon: Scan },
   { id: 'wireframe', label: 'Wire', icon: ScanLine },
 ];
+
+const toolText = {
+  orbit: 'Orbit controls',
+  pan: 'Pan mode: drag to move view',
+  measure: 'Measure mode: click two model points',
+};
 
 const statusText = {
   drop: 'Waiting for STEP file',
@@ -169,6 +181,20 @@ function App() {
             <Maximize size={20} />
           </button>
           <div className="rail-group-label">TOOLS</div>
+          <button
+            className={`rail-button ${activeTool === 'orbit' ? 'active' : ''}`}
+            title="Orbit"
+            onClick={() => setActiveTool('orbit')}
+          >
+            <Rotate3D size={20} />
+          </button>
+          <button
+            className={`rail-button ${activeTool === 'pan' ? 'active' : ''}`}
+            title="Pan"
+            onClick={() => setActiveTool('pan')}
+          >
+            <Hand size={20} />
+          </button>
           <button
             className={`rail-button ${activeTool === 'measure' ? 'active' : ''}`}
             title="Point to point measurement"
@@ -378,7 +404,7 @@ function App() {
       </section>
 
       <footer className="statusbar">
-        <span><Eye size={14} /> {activeTool === 'measure' ? 'Measure mode: click two model points' : 'Orbit controls'}</span>
+        <span><Eye size={14} /> {toolText[activeTool]}</span>
         <span>{statusLabel}</span>
         <span>{stats ? `${stats.triangles.toLocaleString()} triangles` : 'Ready'}</span>
       </footer>

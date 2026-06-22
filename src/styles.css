@@ -276,6 +276,14 @@ h1 {
   cursor: crosshair;
 }
 
+.viewport.is-panning canvas {
+  cursor: grab;
+}
+
+.viewport.is-panning canvas:active {
+  cursor: grabbing;
+}
+
 .viewport-placeholder,
 .viewport-loading {
   width: 100%;
@@ -405,7 +413,7 @@ h1 {
   min-width: 0;
   height: 34px;
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 

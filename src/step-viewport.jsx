@@ -31,12 +31,17 @@ function buildMesh(resultMesh, displayMode) {
     ? new THREE.Color(resultMesh.color[0], resultMesh.color[1], resultMesh.color[2])
     : new THREE.Color(0x6d8797);
 
+  const materialColor = displayMode === 'hidden' ? new THREE.Color(0xf4f8fa) : color;
   const material = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.5,
-    metalness: 0.18,
+    color: materialColor,
+    roughness: displayMode === 'flat' || displayMode === 'hidden' ? 0.86 : 0.5,
+    metalness: displayMode === 'flat' || displayMode === 'hidden' ? 0.04 : 0.18,
     side: THREE.DoubleSide,
     wireframe: displayMode === 'wireframe',
+    flatShading: displayMode === 'flat' || displayMode === 'hidden',
+    transparent: displayMode === 'xray',
+    opacity: displayMode === 'xray' ? 0.34 : 1,
+    depthWrite: displayMode !== 'xray',
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -44,7 +49,7 @@ function buildMesh(resultMesh, displayMode) {
   mesh.userData.pickable = true;
 
   const edgeLines = [];
-  if (displayMode === 'edges' && resultMesh.brep_faces) {
+  if (['edges', 'xray', 'hidden'].includes(displayMode) && resultMesh.brep_faces) {
     for (const face of resultMesh.brep_faces) {
       if (!face.first && face.first !== 0) continue;
       const positions = [];
@@ -57,7 +62,12 @@ function buildMesh(resultMesh, displayMode) {
         edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         edgeLines.push(new THREE.LineSegments(
           edgeGeometry,
-          new THREE.LineBasicMaterial({ color: 0x23313a, transparent: true, opacity: 0.62 }),
+          new THREE.LineBasicMaterial({
+            color: displayMode === 'hidden' ? 0x25343d : 0x23313a,
+            transparent: true,
+            opacity: displayMode === 'xray' ? 0.78 : 0.62,
+            depthTest: displayMode !== 'xray',
+          }),
         ));
       }
     }
@@ -296,6 +306,14 @@ const StepViewport = forwardRef(function StepViewport({
   useEffect(() => {
     activeToolRef.current = activeTool;
     if (activeTool !== 'measure') pendingPointRef.current = null;
+    const controls = controlsRef.current;
+    if (!controls) return;
+    controls.enablePan = true;
+    controls.mouseButtons.LEFT = activeTool === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    controls.mouseButtons.RIGHT = activeTool === 'pan' ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+    controls.touches.ONE = activeTool === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
   }, [activeTool]);
 
   const publishMeasurements = useCallback(() => {
@@ -433,6 +451,12 @@ const StepViewport = forwardRef(function StepViewport({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    controls.enablePan = true;
+    controls.mouseButtons.LEFT = activeToolRef.current === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    controls.touches.ONE = activeToolRef.current === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xb4c2c9, 2.2));
     const key = new THREE.DirectionalLight(0xffffff, 2);
@@ -672,7 +696,7 @@ const StepViewport = forwardRef(function StepViewport({
     },
   }));
 
-  return <div ref={containerRef} className={`viewport ${activeTool === 'measure' ? 'is-measuring' : ''}`} />;
+  return <div ref={containerRef} className={`viewport ${activeTool === 'measure' ? 'is-measuring' : ''} ${activeTool === 'pan' ? 'is-panning' : ''}`} />;
 });
 
 export default StepViewport;
