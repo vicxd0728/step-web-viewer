@@ -76,6 +76,53 @@ function buildMesh(resultMesh, displayMode) {
   return { mesh, edgeLines };
 }
 
+function makeDisplayMaterial(sourceMaterial, displayMode) {
+  const source = Array.isArray(sourceMaterial) ? sourceMaterial[0] : sourceMaterial;
+  const color = displayMode === 'hidden'
+    ? new THREE.Color(0xf4f8fa)
+    : source?.color?.clone?.() || new THREE.Color(0x6d8797);
+
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: displayMode === 'flat' || displayMode === 'hidden' ? 0.86 : 0.5,
+    metalness: displayMode === 'flat' || displayMode === 'hidden' ? 0.04 : 0.18,
+    side: THREE.DoubleSide,
+    wireframe: displayMode === 'wireframe',
+    flatShading: displayMode === 'flat' || displayMode === 'hidden',
+    transparent: displayMode === 'xray',
+    opacity: displayMode === 'xray' ? 0.34 : 1,
+    depthWrite: displayMode !== 'xray',
+    map: source?.map || null,
+  });
+}
+
+function cloneThreeModelForDisplay(sourceObject, displayMode) {
+  const clone = sourceObject.clone(true);
+  const meshes = [];
+  clone.traverse((child) => {
+    if (!child.isMesh) return;
+    child.geometry = child.geometry.clone();
+    child.material = makeDisplayMaterial(child.material, displayMode);
+    child.userData.pickable = true;
+    meshes.push(child);
+  });
+
+  if (['edges', 'xray', 'hidden'].includes(displayMode)) {
+    for (const mesh of meshes) {
+      const edgeGeometry = new THREE.EdgesGeometry(mesh.geometry, 35);
+      const edgeMaterial = new THREE.LineBasicMaterial({
+        color: displayMode === 'hidden' ? 0x25343d : 0x23313a,
+        transparent: true,
+        opacity: displayMode === 'xray' ? 0.78 : 0.62,
+        depthTest: displayMode !== 'xray',
+      });
+      mesh.add(new THREE.LineSegments(edgeGeometry, edgeMaterial));
+    }
+  }
+
+  return { clone, meshes };
+}
+
 function getModelBox(object) {
   const box = new THREE.Box3().setFromObject(object);
   return box.isEmpty() ? null : box;
@@ -433,6 +480,54 @@ const StepViewport = forwardRef(function StepViewport({
     fitCamera(cameraRef.current, controlsRef.current, group);
   }, [applyExplode, onDimensions, onStats, publishParts, rebuildAutoDimensions]);
 
+  const rebuildThreeScene = useCallback((sourceObject, mode) => {
+    const group = modelGroupRef.current;
+    disposeObject(group);
+    group.clear();
+    partsRef.current = [];
+
+    const { clone, meshes } = cloneThreeModelForDisplay(sourceObject, mode);
+    let triangles = 0;
+    const modelBox = getModelBox(clone);
+    const modelCenter = modelBox?.getCenter(new THREE.Vector3()) || new THREE.Vector3();
+    const modelSize = modelBox?.getSize(new THREE.Vector3()) || new THREE.Vector3(1, 1, 1);
+    const maxSize = Math.max(modelSize.x, modelSize.y, modelSize.z, 1);
+
+    meshes.forEach((mesh, index) => {
+      const partBox = getModelBox(mesh);
+      const center = partBox?.getCenter(new THREE.Vector3()) || new THREE.Vector3();
+      const explodeVector = center.clone().sub(modelCenter);
+      if (explodeVector.lengthSq() < 0.0001) {
+        explodeVector.set(Math.cos(index + 1), Math.sin(index + 1), 0.25);
+      }
+      const partTriangles = Math.floor((mesh.geometry.index?.count ?? mesh.geometry.attributes.position?.count ?? 0) / 3);
+      triangles += partTriangles;
+      partsRef.current.push({
+        id: index + 1,
+        name: mesh.name || mesh.parent?.name || `3MF Part ${index + 1}`,
+        triangles: partTriangles,
+        group: mesh,
+        basePosition: mesh.position.clone(),
+        center,
+        explodeVector: explodeVector.normalize().multiplyScalar(maxSize * 0.55),
+        isolated: false,
+      });
+    });
+
+    group.add(clone);
+    const box = getModelBox(group);
+    if (box) {
+      modelBoxRef.current = box.clone();
+      const size = box.getSize(new THREE.Vector3());
+      onDimensions({ x: size.x, y: size.y, z: size.z });
+    }
+    applyExplode(explodeAmountRef.current);
+    rebuildAutoDimensions(showAutoDimensionsRef.current);
+    publishParts();
+    onStats({ meshes: meshes.length, triangles, edges: 0 });
+    fitCamera(cameraRef.current, controlsRef.current, group);
+  }, [applyExplode, onDimensions, onStats, publishParts, rebuildAutoDimensions]);
+
   useEffect(() => {
     mountedRef.current = true;
     const container = containerRef.current;
@@ -580,42 +675,57 @@ const StepViewport = forwardRef(function StepViewport({
     if (!model) return;
     let cancelled = false;
 
-    async function parseStep() {
+    async function parseModel() {
       onStatus('parsing');
       try {
         clearMeasurements();
         partsRef.current = [];
         publishParts();
-        const { default: occtimportjs } = await import('occt-import-js');
-        const occt = await occtimportjs({
-          locateFile: (fileName) => `/${fileName}`,
-        });
-        const result = occt.ReadStepFile(new Uint8Array(model.buffer), null);
-        if (cancelled || !mountedRef.current) return;
 
-        if (!result?.meshes?.length) {
-          throw new Error('STEP file did not produce displayable mesh geometry.');
+        if (model.format === '3mf') {
+          const { ThreeMFLoader } = await import('three/examples/jsm/loaders/3MFLoader.js');
+          const loader = new ThreeMFLoader();
+          const object = loader.parse(model.buffer);
+          if (cancelled || !mountedRef.current) return;
+          if (!object) throw new Error('3MF file did not produce displayable mesh geometry.');
+          parsedResultRef.current = { format: '3mf', object };
+          rebuildThreeScene(object, displayModeRef.current);
+        } else {
+          const { default: occtimportjs } = await import('occt-import-js');
+          const occt = await occtimportjs({
+            locateFile: (fileName) => `/${fileName}`,
+          });
+          const result = occt.ReadStepFile(new Uint8Array(model.buffer), null);
+          if (cancelled || !mountedRef.current) return;
+
+          if (!result?.meshes?.length) {
+            throw new Error('STEP file did not produce displayable mesh geometry.');
+          }
+
+          parsedResultRef.current = { format: 'step', result };
+          rebuildScene(result, displayModeRef.current);
         }
-
-        parsedResultRef.current = result;
-        rebuildScene(result, displayModeRef.current);
         onStatus('loaded');
       } catch (err) {
         if (!cancelled) onError(err instanceof Error ? err.message : String(err));
       }
     }
 
-    parseStep();
+    parseModel();
     return () => {
       cancelled = true;
     };
-  }, [model, rebuildScene, clearMeasurements, onError, onStatus, publishParts]);
+  }, [model, rebuildScene, rebuildThreeScene, clearMeasurements, onError, onStatus, publishParts]);
 
   useEffect(() => {
     if (parsedResultRef.current) {
-      rebuildScene(parsedResultRef.current, displayMode);
+      if (parsedResultRef.current.format === '3mf') {
+        rebuildThreeScene(parsedResultRef.current.object, displayMode);
+      } else {
+        rebuildScene(parsedResultRef.current.result, displayMode);
+      }
     }
-  }, [displayMode, rebuildScene]);
+  }, [displayMode, rebuildScene, rebuildThreeScene]);
 
   useImperativeHandle(ref, () => ({
     fit() {

@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "start": "vite preview --host 127.0.0.1 --port 5181 --strictPort",
-    "start:dev": "vite --host 127.0.0.1 --port 5181 --strictPort"
+    "start:dev": "vite --host 127.0.0.1 --port 5181 --strictPort",
+    "test:contract": "node --test tests/viewer-contract.test.mjs",
+    "verify": "npm run test:contract && npm run build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

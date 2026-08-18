@@ -65,9 +65,9 @@ const toolText = {
 };
 
 const statusText = {
-  drop: 'Waiting for STEP file',
+  drop: 'Waiting for 3D file',
   loading: 'Reading file',
-  parsing: 'Parsing STEP',
+  parsing: 'Parsing 3D file',
   loaded: 'Model loaded',
   error: 'Load failed',
 };
@@ -79,6 +79,12 @@ function formatLength(value) {
 
 function isMarkupTool(tool) {
   return tool.startsWith('draw-');
+}
+
+function getModelFormat(fileName = '') {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (extension === '3mf') return '3mf';
+  return 'step';
 }
 
 function normalizePoint(event, element) {
@@ -312,7 +318,7 @@ function App() {
     setShowAutoDimensions(false);
     try {
       const buffer = await nextFile.arrayBuffer();
-      setModel({ name: nextFile.name, buffer });
+      setModel({ name: nextFile.name, buffer, format: getModelFormat(nextFile.name) });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setStatus('error');
@@ -383,7 +389,7 @@ function App() {
           </div>
           <button className="text-button" onClick={() => inputRef.current?.click()}>
             <Upload size={16} />
-            Upload STEP
+            Upload 3D
           </button>
           <button className="icon-button" title="Fit model" onClick={() => viewerRef.current?.fit()}>
             <RotateCcw size={17} />
@@ -509,8 +515,8 @@ function App() {
           {!model && (
             <button className="drop-zone" onClick={() => inputRef.current?.click()}>
               <img src="/logo.svg" alt="" />
-              <span>Drop .stp / .step here or click to upload</span>
-              <small>STP Studio loads the 3D engine only after upload to keep the app fast.</small>
+              <span>Drop .stp / .step / .3mf here or click to upload</span>
+              <small>STP Studio supports STEP CAD files and 3MF printing models.</small>
             </button>
           )}
           <svg
@@ -763,7 +769,7 @@ function App() {
         ref={inputRef}
         className="hidden-input"
         type="file"
-        accept=".stp,.step"
+        accept=".stp,.step,.3mf"
         onChange={(event) => onFile(event.target.files?.[0])}
       />
       <input
