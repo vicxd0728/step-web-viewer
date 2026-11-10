@@ -31,7 +31,7 @@ test("viewer keeps STEP/3MF parsing, WebGL, and upload contracts", async () => {
   assert.match(viewport, /new THREE\.WebGLRenderer\(\{ antialias: true, preserveDrawingBuffer: true \}\)/);
   assert.match(viewport, /STEP file did not produce displayable mesh geometry/);
   assert.match(viewport, /3MF file did not produce displayable mesh geometry/);
-  assert.match(main, /accept="\.stp,\.step,\.3mf"/);
+  assert.match(main, /accept="\.stp,\.step,\.3mf,\.x_t"/);
 });
 
 test("verification cannot deploy or replace the sample model", async () => {

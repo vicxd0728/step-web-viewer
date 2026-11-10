@@ -480,7 +480,7 @@ const StepViewport = forwardRef(function StepViewport({
     fitCamera(cameraRef.current, controlsRef.current, group);
   }, [applyExplode, onDimensions, onStats, publishParts, rebuildAutoDimensions]);
 
-  const rebuildThreeScene = useCallback((sourceObject, mode) => {
+  const rebuildThreeScene = useCallback((sourceObject, mode, asSinglePart = false) => {
     const group = modelGroupRef.current;
     disposeObject(group);
     group.clear();
@@ -493,21 +493,27 @@ const StepViewport = forwardRef(function StepViewport({
     const modelSize = modelBox?.getSize(new THREE.Vector3()) || new THREE.Vector3(1, 1, 1);
     const maxSize = Math.max(modelSize.x, modelSize.y, modelSize.z, 1);
 
-    meshes.forEach((mesh, index) => {
-      const partBox = getModelBox(mesh);
+    const countTriangles = (mesh) => Math.floor(
+      (mesh.geometry.index?.count ?? mesh.geometry.attributes.position?.count ?? 0) / 3,
+    );
+    const parts = asSinglePart ? [clone] : meshes;
+    parts.forEach((part, index) => {
+      const partBox = getModelBox(part);
       const center = partBox?.getCenter(new THREE.Vector3()) || new THREE.Vector3();
       const explodeVector = center.clone().sub(modelCenter);
       if (explodeVector.lengthSq() < 0.0001) {
         explodeVector.set(Math.cos(index + 1), Math.sin(index + 1), 0.25);
       }
-      const partTriangles = Math.floor((mesh.geometry.index?.count ?? mesh.geometry.attributes.position?.count ?? 0) / 3);
+      const partTriangles = asSinglePart
+        ? meshes.reduce((total, mesh) => total + countTriangles(mesh), 0)
+        : countTriangles(part);
       triangles += partTriangles;
       partsRef.current.push({
         id: index + 1,
-        name: mesh.name || mesh.parent?.name || `3MF Part ${index + 1}`,
+        name: asSinglePart ? 'Parasolid model' : part.name || part.parent?.name || `3MF Part ${index + 1}`,
         triangles: partTriangles,
-        group: mesh,
-        basePosition: mesh.position.clone(),
+        group: part,
+        basePosition: part.position.clone(),
         center,
         explodeVector: explodeVector.normalize().multiplyScalar(maxSize * 0.55),
         isolated: false,
@@ -674,6 +680,7 @@ const StepViewport = forwardRef(function StepViewport({
   useEffect(() => {
     if (!model) return;
     let cancelled = false;
+    const abort = new AbortController();
 
     async function parseModel() {
       onStatus('parsing');
@@ -682,7 +689,16 @@ const StepViewport = forwardRef(function StepViewport({
         partsRef.current = [];
         publishParts();
 
-        if (model.format === '3mf') {
+        if (model.format === 'parasolid') {
+          const { readParasolid } = await import('./parasolid-loader.js');
+          const object = await readParasolid(model.buffer, abort.signal);
+          if (cancelled || !mountedRef.current) {
+            disposeObject(object);
+            return;
+          }
+          parsedResultRef.current = { format: 'parasolid', object };
+          rebuildThreeScene(object, displayModeRef.current, true);
+        } else if (model.format === '3mf') {
           const { ThreeMFLoader } = await import('three/examples/jsm/loaders/3MFLoader.js');
           const loader = new ThreeMFLoader();
           const object = loader.parse(model.buffer);
@@ -714,15 +730,17 @@ const StepViewport = forwardRef(function StepViewport({
     parseModel();
     return () => {
       cancelled = true;
+      abort.abort();
     };
   }, [model, rebuildScene, rebuildThreeScene, clearMeasurements, onError, onStatus, publishParts]);
 
   useEffect(() => {
     if (parsedResultRef.current) {
-      if (parsedResultRef.current.format === '3mf') {
-        rebuildThreeScene(parsedResultRef.current.object, displayMode);
-      } else {
+      if (parsedResultRef.current.format === 'step') {
         rebuildScene(parsedResultRef.current.result, displayMode);
+      } else {
+        const { object, format } = parsedResultRef.current;
+        rebuildThreeScene(object, displayMode, format === 'parasolid');
       }
     }
   }, [displayMode, rebuildScene, rebuildThreeScene]);

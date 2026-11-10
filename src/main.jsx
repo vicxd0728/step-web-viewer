@@ -84,7 +84,9 @@ function isMarkupTool(tool) {
 function getModelFormat(fileName = '') {
   const extension = fileName.split('.').pop()?.toLowerCase();
   if (extension === '3mf') return '3mf';
-  return 'step';
+  if (extension === 'x_t') return 'parasolid';
+  if (extension === 'stp' || extension === 'step') return 'step';
+  return null;
 }
 
 function normalizePoint(event, element) {
@@ -317,8 +319,10 @@ function App() {
     setExplodeAmount(0);
     setShowAutoDimensions(false);
     try {
+      const format = getModelFormat(nextFile.name);
+      if (!format) throw new Error('Supported formats: .stp, .step, .3mf, .x_t');
       const buffer = await nextFile.arrayBuffer();
-      setModel({ name: nextFile.name, buffer, format: getModelFormat(nextFile.name) });
+      setModel({ name: nextFile.name, buffer, format });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setStatus('error');
@@ -515,8 +519,8 @@ function App() {
           {!model && (
             <button className="drop-zone" onClick={() => inputRef.current?.click()}>
               <img src="/logo.svg" alt="" />
-              <span>Drop .stp / .step / .3mf here or click to upload</span>
-              <small>STP Studio supports STEP CAD files and 3MF printing models.</small>
+              <span>Drop .stp / .step / .3mf / .x_t here or click to upload</span>
+              <small>Parasolid (.x_t) requires the local STP Studio reader.</small>
             </button>
           )}
           <svg
@@ -769,8 +773,11 @@ function App() {
         ref={inputRef}
         className="hidden-input"
         type="file"
-        accept=".stp,.step,.3mf"
-        onChange={(event) => onFile(event.target.files?.[0])}
+        accept=".stp,.step,.3mf,.x_t"
+        onChange={(event) => {
+          onFile(event.target.files?.[0]);
+          event.target.value = '';
+        }}
       />
       <input
         ref={photoInputRef}

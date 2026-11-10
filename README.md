@@ -47,4 +47,16 @@ npm.cmd run build
 
 Upload the full `dist` folder to a static website host. Keep `occt-import-js.wasm` at the website root because the viewer loads it from `/occt-import-js.wasm`.
 
+### Parasolid (.x_t) on Windows
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run
+`start-parasolid-reader.bat` on the computer running the browser. Keep it open
+while using the viewer and allow local network access if the browser asks.
+The first start downloads the pinned reader and its dependencies. You can then
+drop an `.x_t` file into the viewer. The file is sent only to the loopback reader
+on that computer. It returns a triangulated preview in millimeters. The preview
+is listed as one item and does not provide native CAD editing. Supported
+Parasolid schemas and surfaces depend on the reader version. The Cloudflare
+Pages frontend and the local reader are started separately.
+
 For public product pages, the recommended long-term flow is to convert STEP files to `.glb` first, then load `.glb` on the website. Direct STEP parsing is useful for internal tools and upload workflows, but `.glb` is faster and lighter for visitors.
